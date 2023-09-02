@@ -34,6 +34,9 @@
 * The client code needs `burgerbot.py` module which I found at [Kevin McAleer's Burgerbot repo](https://github.com/kevinmcaleer/burgerbot)
     * `burgerbot.py` needs `motor` and `servo`, which I wasn't able to find.
         * No matter... I'm not using burgerbot anyway.
+* My project (below) uses a different LCD but aims to copy the Pico-to-Pico BLE communication exactly the same
+
+![LCD & Remote Pico](imgs/lcd_remote.jpg)
 
 ### My Remote (bluetooth server)
 * Instead of using the Pimoroni display, I am using the [Pico LCD 1.14](https://www.waveshare.com/wiki/Pico-LCD-1.14#Download_Demo_codes)
