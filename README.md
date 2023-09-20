@@ -143,7 +143,7 @@ Connected
 
 ### Efforts to resolve crashing issue
 * Posted a comment on [Kevin's Youtube channel](https://www.youtube.com/watch?v=-0wCtKz1l78)
-* I noticed that another person posted a comment (~ 1 month ago) reporting a `GatError` after ~ 1 minute.
+* I noticed that another person posted a comment (~ 1 month ago) reporting a `GattError` after ~ 1 minute.
 * I uploaded the Pimoroni micropython version 1.20.4 (to replace the Paspberry Pi version) but this didn't solve the problem.
     * However it answered my question about where to find the missing modules (pimoroni, motor, servo). They are included in this version of micropython.
 ```
@@ -181,3 +181,125 @@ breakout_bmp280   framebuf          pimoroni          zlib
 Plus any modules on the filesystem
 >>> 
 ```
+
+## Time passes... Haven't figured out what is causing the code to crash
+
+> Decided to try approaching this from a new direction. Try to find another aioble server/client example that doesn't crash.
+
+## MicroPython [aioble library GitHub repo](https://github.com/micropython/micropython-lib/tree/master/micropython/bluetooth/aioble) has a temperature sensor / client example which I will now try out.
+
+* That works fine too, for about a minute. Then I get this error:
+
+```
+Connecting to Device(ADDR_PUBLIC, 28:cd:c1:0a:4c:25)
+Temperature: 24.53
+Temperature: 24.79
+Temperature: 24.77
+Temperature: 24.53
+Temperature: 24.93
+Temperature: 25.37
+Temperature: 24.92
+Temperature: 24.98
+Temperature: 25.12
+Temperature: 25.16
+Temperature: 25.16
+Temperature: 24.80
+Temperature: 24.52
+Temperature: 24.22
+Temperature: 24.36
+Temperature: 24.32
+Temperature: 24.08
+Temperature: 23.89
+Temperature: 24.46
+Temperature: 24.94
+Temperature: 25.23
+Temperature: 25.12
+Temperature: 24.65
+Temperature: 24.77
+Temperature: 24.61
+Temperature: 24.90
+Temperature: 24.55
+Temperature: 24.45
+Temperature: 24.69
+Temperature: 24.79
+Temperature: 24.80
+Temperature: 24.73
+Temperature: 24.49
+Temperature: 24.70
+Temperature: 24.07
+Temperature: 24.24
+Temperature: 23.96
+Temperature: 24.14
+Temperature: 24.54
+Temperature: 24.13
+Temperature: 24.12
+Temperature: 24.46
+Temperature: 24.19
+Temperature: 24.36
+Temperature: 24.28
+Temperature: 24.40
+Temperature: 24.44
+Temperature: 24.57
+Temperature: 24.89
+Temperature: 24.93
+Temperature: 25.04
+Temperature: 24.56
+Temperature: 24.32
+Traceback (most recent call last):
+  File "<stdin>", line 63, in <module>
+  File "uasyncio/core.py", line 1, in run
+  File "uasyncio/core.py", line 1, in run_until_complete
+  File "uasyncio/core.py", line 1, in run_until_complete
+  File "<stdin>", line 58, in main
+  File "aioble/client.py", line 258, in read
+GattError: 31
+```
+
+* Without disturbing the sensor (server), I restarted the client, which then continued without errors, but the value of the temperature was no longer changing.
+
+```
+Connecting to Device(ADDR_PUBLIC, 28:cd:c1:0a:4c:25)
+Temperature: 24.16
+Temperature: 24.16
+Temperature: 24.16
+...
+```
+
+* From this it looks like the ble client was continuing to get temperature data but the server was no longer sending fresh data.
+* Moved the server to run under Thonny.
+    * First start the server.
+    * Then started the client.
+    * Exactly 1 minute after the client connects, the server crashes with this traceback:
+
+```
+Connection from Device(ADDR_PUBLIC, 28:cd:c1:0a:4a:e2, CONNECTED)
+Traceback (most recent call last):
+  File "<stdin>", line 68, in <module>
+  File "uasyncio/core.py", line 1, in run
+  File "uasyncio/core.py", line 1, in run_until_complete
+  File "uasyncio/core.py", line 1, in run_until_complete
+  File "<stdin>", line 65, in main
+  File "uasyncio/funcs.py", line 1, in gather
+  File "uasyncio/core.py", line 1, in run_until_complete
+  File "<stdin>", line 58, in peripheral_task
+  File "aioble/device.py", line 295, in __aexit__
+  File "aioble/device.py", line 216, in disconnect
+  File "aioble/device.py", line 232, in disconnected
+  File "aioble/device.py", line 232, in disconnected
+  File "uasyncio/core.py", line 1, in run_until_complete
+  File "aioble/device.py", line 198, in device_task
+  File "uasyncio/event.py", line 1, in wait
+CancelledError: 
+```
+### I think I may have found the cause of the problem.
+
+* Edited server code: last line in coroutine `async def peripheral task():`
+    * originally was: `await connection.disconnected()`
+    * after editing: `await connection.disconnected(timeout_ms=None)`
+
+* Apparently, the default value is 60_000 (60 sec).
+* Indeed the code for `device.py` in the aioble library module has a DeviceConnection class which
+has a coroutine `async def disconnected(self, timeout_ms=60000, disconnect=False)`
+* Next I want to see if this will fix the problem with Kevin McAleer's code.
+    * Yep, that seems to fix the problem. Now the code runs indefinitely.
+

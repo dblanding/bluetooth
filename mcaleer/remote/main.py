@@ -6,9 +6,10 @@ import sys
 
 import aioble
 import bluetooth
+import gc
 import machine
 import uasyncio as asyncio
-from micropython import const
+from micropython import const, mem_info
 from pico_lcd_1_14 import LCD_1inch14
 from machine import Pin,SPI,PWM
 import framebuf
@@ -102,7 +103,6 @@ connected = False
 
 async def remote_task():
     """ Send the event to the connected device """
-
     while True:
         if not connected:
             print('not connected')
@@ -191,11 +191,12 @@ async def remote_task():
             LCD.rect(62,60,20,20,LCD.red)
 
         LCD.show()
+
         await asyncio.sleep_ms(10)
-        
-            
-# Serially wait for connections. Don't advertise while a central is
-# connected.    
+
+
+# Serially wait for connections.
+# Don't advertise while a central is connected
 async def peripheral_task():
     print('peripheral task started')
     global connected, connection
@@ -210,7 +211,7 @@ async def peripheral_task():
             print("Connection from", connection.device)
             connected = True
             print(f"connected: {connected}")
-            await connection.disconnected()
+            await connection.disconnected(timeout_ms=None)
             print(f'disconnected')
         
 
